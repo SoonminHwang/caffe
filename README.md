@@ -1,3 +1,36 @@
+# Updates
+Several layers are added for compatibility to deeplab-v2, etc.
+
+- layer/interp layer (.cpp, .hpp)
+- util/interp (.cpp, .cu)
+- common.cuh: Add follows (for CUDA 8.0)
+	
+		#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
+		#else
+		// CUDA: atomicAdd is not defined for doubles
+		static __inline__ __device__ double atomicAdd(double *address, double val) {
+		  unsigned long long int* address_as_ull = (unsigned long long int*)address;
+		  unsigned long long int old = *address_as_ull, assumed;
+		  if (val==0.0)
+		    return __longlong_as_double(old);
+		  do {
+		    assumed = old;
+		    old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val +__longlong_as_double(assumed)));
+		  } while (assumed != old);
+		  return __longlong_as_double(old);
+		}
+		#endif
+- layer/BN_layer (.cpp, .cu, .hpp)
+- layer/image_seg_data_layer (.cpp, .hpp)
+- Updates: utils/io, data transformer, layer/base data layer, Makefile (Add ````CXXFLAGS += --std=c++11```` in Line 12)
+
+- Common things: PREFETCH_COUNT -> prefetch_.size() 
+
+~
+~ 
+
+
+---
 # Caffe
 
 [![Build Status](https://travis-ci.org/BVLC/caffe.svg?branch=master)](https://travis-ci.org/BVLC/caffe)
