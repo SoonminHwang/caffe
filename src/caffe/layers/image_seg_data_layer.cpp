@@ -58,6 +58,8 @@ void ImageSegDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     lines_.push_back(std::make_pair(imgfn, segfn));
   }
 
+  CHECK(!lines_.empty()) << "File is empty";
+
   if (this->layer_param_.image_data_param().shuffle()) {
     // randomly shuffle data
     LOG(INFO) << "Shuffling data";
@@ -84,6 +86,7 @@ void ImageSegDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   const int channels = cv_img.channels();
   const int height = cv_img.rows;
   const int width = cv_img.cols;
+  
   // image
   //const int crop_size = this->layer_param_.transform_param().crop_size();
   int crop_width = 0;
@@ -101,6 +104,8 @@ void ImageSegDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
   }
 
   const int batch_size = this->layer_param_.image_data_param().batch_size();
+  CHECK_GT(batch_size, 0) << "Positive batch size required";
+
   if (crop_width > 0 && crop_height > 0) {
     top[0]->Reshape(batch_size, channels, crop_height, crop_width);
     this->transformed_data_.Reshape(batch_size, channels, crop_height, crop_width);
@@ -127,7 +132,8 @@ void ImageSegDataLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom
     for (int i = 0; i < this->prefetch_.size(); ++i) {
       this->prefetch_[i]->label_.Reshape(batch_size, 1, height, width);
     }
-  }
+  }  
+
   // image dimensions, for each image, stores (img_height, img_width)
   top[2]->Reshape(batch_size, 1, 1, 2);
   for (int i = 0; i < this->prefetch_.size(); ++i) {
@@ -209,7 +215,7 @@ void ImageSegDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       cv_img_seg.push_back(ReadImageToCVMat(root_folder + lines_[lines_id_].second,
 					    new_height, new_width, false));
       if (!cv_img_seg[1].data) {
-	DLOG(INFO) << "Fail to load seg: " << root_folder + lines_[lines_id_].second;
+        DLOG(INFO) << "Fail to load seg: " << root_folder + lines_[lines_id_].second;
       }
     }
     else if (label_type == ImageDataParameter_LabelType_IMAGE) {
@@ -225,6 +231,7 @@ void ImageSegDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     }
 
     read_time += timer.MicroSeconds();
+    
     timer.Start();
     // Apply transformations (mirror, crop...) to the image
     int offset;
@@ -234,9 +241,12 @@ void ImageSegDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     offset = batch->label_.offset(item_id);
     this->transformed_label_.set_cpu_data(top_label + offset);
 
-    this->data_transformer_->TransformImgAndSeg(cv_img_seg, 
-	 &(this->transformed_data_), &(this->transformed_label_),
-	 ignore_label);
+    // this->data_transformer_->TransformImgAndSeg(cv_img_seg, 
+    //   &(this->transformed_data_), &(this->transformed_label_),
+    //   ignore_label);
+    this->data_transformer_->TransformImgAndSeg2(cv_img_seg, 
+      &(this->transformed_data_), &(this->transformed_label_),
+      ignore_label);
     trans_time += timer.MicroSeconds();
 
     // go to the next std::vector<int>::iterator iter;
@@ -246,7 +256,7 @@ void ImageSegDataLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
       DLOG(INFO) << "Restarting data prefetching from start.";
       lines_id_ = 0;
       if (this->layer_param_.image_data_param().shuffle()) {
-	ShuffleImages();
+        ShuffleImages();
       }
     }
   }

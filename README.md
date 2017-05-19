@@ -1,8 +1,10 @@
 # Updates
 Several layers are added for compatibility to deeplab-v2, etc.
 
+- layer/seg_accuracy_layer (.cpp, .hpp)
 - layer/interp layer (.cpp, .hpp)
 - util/interp (.cpp, .cu)
+- util/confusion_matrix (.cpp, .hpp)
 - common.cuh: Add follows (for CUDA 8.0)
 	
 		#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
@@ -26,8 +28,73 @@ Several layers are added for compatibility to deeplab-v2, etc.
 
 - Common things: PREFETCH_COUNT -> prefetch_.size() 
 
-~
-~ 
+- Enhanced Image Seg Data Layer with data augmentation, which is based on:
+	[@twtygqyy](https://github.com/twtygqyy)'s [caffe-augmentation](https://github.com/twtygqyy/caffe-augmentation).
+
+	- Usage:
+
+		In training phase,
+
+			layer {
+				name: "data"
+				type: "ImageSegData"
+				top: "data"
+				top: "mask"
+				include {
+				  phase: TRAIN
+				}
+				transform_param {
+				    mirror: true
+					crop_size: 224
+
+					mean_value: 104.008
+					mean_value: 116.669
+					mean_value: 122.675
+					scale_factors: 0.5
+					scale_factors: 1.0
+					scale_factors: 1.5
+					scale_factors: 2.0
+
+				    contrast_brightness_adjustment: true
+				    smooth_filtering: true
+				    min_side_min: 256
+				    min_side_max: 480				    				    
+				    min_contrast: 0.8
+				    max_contrast: 1.2
+				    max_smooth: 6
+				    apply_probability: 0.5
+				    max_color_shift: 20
+				    debug_params: false
+				}
+				image_data_param {
+				  source: "train_list.txt"
+				  batch_size: 64
+				}
+			}
+
+ 		In testing phase,
+
+			layer {
+				name: "data"
+				type: "ImageData"
+				top: "data"
+				top: "label"
+				include {
+				  phase: TEST
+				}
+				transform_param {
+				    mirror: false
+				    min_side: 256
+				    crop_size: 224
+				    mean_value: 104.008
+					mean_value: 116.669
+					mean_value: 122.675
+				}
+				image_data_param {
+				  source: "test_list.txt"
+				  batch_size: 32
+				}
+			}
 
 
 ---
